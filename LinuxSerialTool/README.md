@@ -13,7 +13,7 @@ Run:
     ./serail_tool /dev/ttyS0 -rsavo -b 115200 -m 232
     
     #Receive data
-    ./serail_tool /dev/ttyS0 -rsavo -b 115200
+    ./serail_tool /dev/ttyS0 -ravo -b 115200
   
     #Send data
-    ./serail_tool /dev/ttyS0 -rsavo -b 115200
+    ./serail_tool /dev/ttyS0 -savo -b 115200

@@ -1,5 +1,6 @@
 #include "serial.h"
 
+#define SERIAL_IOCTL_SET_RS485	    
 #define RECV_TIMEOUT	3  // ms
 enum interaction {
 	IA_ACTIVE = 0, // active will send anyway
@@ -469,6 +470,66 @@ static struct FC_DATA {
 	{0, FC_NONE}
 };
 
+#if  0
+/* define in serial.h*/
+struct serial_rs485 {
+	__u32	flags;			/* RS485 feature flags */
+#define SER_RS485_ENABLED		(1 << 0)	/* If enabled */
+#define SER_RS485_RTS_ON_SEND		(1 << 1)	/* Logical level for
+							   RTS pin when
+							   sending */
+#define SER_RS485_RTS_AFTER_SEND	(1 << 2)	/* Logical level for
+							   RTS pin after sent*/
+#define SER_RS485_RX_DURING_TX		(1 << 4)	/* Support RX and TX at same time*/
+	__u32	delay_rts_before_send;	/* Delay before send (milliseconds) */
+	__u32	delay_rts_after_send;	/* Delay after send (milliseconds) */
+	__u32	padding[5];		/* Memory is cheap, new structs
+					   are a royal PITA .. */
+};
+
+#endif
+
+#define SERIAL_MODE_RS232	(0)
+#define SERIAL_MODE_RS485	(1)
+#define SERIAL_MODE_RS422	(2)
+
+int set_serial_mode(int fd, int mode){
+	struct serial_rs485 rs485conf;
+
+	if(mode == SERIAL_MODE_RS485 || mode == SERIAL_MODE_RS422){
+		if (ioctl(fd, TIOCGRS485, &rs485conf) < 0) {
+        	return -1;
+        }
+		//enable rs485 mode.
+		rs485conf.flags = 0;
+        rs485conf.flags |= SER_RS485_ENABLED;
+		//after send rts set as High level
+		rs485conf.flags &= ~SER_RS485_RTS_AFTER_SEND;
+		// Low Level as send.	
+		rs485conf.flags |= SER_RS485_RTS_ON_SEND;
+		// disable tx during rx
+		rs485conf.flags &= ~SER_RS485_RX_DURING_TX;
+		if(mode == SERIAL_MODE_RS422){
+			rs485conf.flags |= SER_RS485_RX_DURING_TX;
+			//rs485conf.flags |= SER_RS485_RTS_AFTER_SEND;
+		}	
+        if (ioctl(fd, TIOCSRS485, &rs485conf) < 0) {
+        	return -1;
+        }
+	}else{
+		//turn off the rs485 mode.
+		if (ioctl(fd, TIOCGRS485, &rs485conf) < 0) {
+        	return -1;
+        }
+        rs485conf.flags &= ~SER_RS485_ENABLED;
+        if (ioctl(fd, TIOCSRS485, &rs485conf) < 0) {
+        	return -1;
+        }
+	}
+
+	return 0;
+}
+
 int main(int argc, char *argv[], char *envp[])
 {
 	pthread_t SendThreadHandle, RecvThreadHandle,
@@ -877,18 +938,34 @@ int main(int argc, char *argv[], char *envp[])
 	switch(f_mode) {
 	case MODE_RS232:
 		printf("using RS-232 transmittion mode\n");
+		
 		PortTermios.c_iflag &= ~IRS422;
 		PortTermios.c_iflag &= ~IRS485;
 		break;
 	case MODE_RS422:
 		printf("using RS-422 transmittion mode\n");
+#ifdef  SERIAL_IOCTL_SET_RS485
+
+		if(set_serial_mode(PortHandle, SERIAL_MODE_RS422) != 0){
+			fprintf(stderr, "set serial mode error");
+			return -1;
+		}
+#else
 		PortTermios.c_iflag |= IRS422;
 		PortTermios.c_iflag &= ~IRS485;
+#endif
 		break;
 	case MODE_RS485:
 		printf("using RS-485 transmittion mode\n");
+#ifdef  SERIAL_IOCTL_SET_RS485
+		if(set_serial_mode(PortHandle, SERIAL_MODE_RS485) != 0){
+			fprintf(stderr, "set serial mode error");
+			return -1;
+		}
+#else
 		PortTermios.c_iflag &= ~IRS422;
 		PortTermios.c_iflag |= IRS485;
+#endif
 		break;
 	default:
 		goto ERROR_END;

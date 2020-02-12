@@ -6,7 +6,7 @@ OBJS = serial_tool.o\
 HEADERS = serial.h
 
 REALTIME_LIBS = -lpthread -lrt
-STATIC_COMPILER= --static
+#STATIC_COMPILER= --static
 
 all:${EXEC}
 ${EXEC} : ${OBJS}

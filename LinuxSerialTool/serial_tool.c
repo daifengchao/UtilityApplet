@@ -476,6 +476,7 @@ int main(int argc, char *argv[], char *envp[])
 		RS485ThreadHandle;
 	int CreateThreadResult = -1;
 	int PortHandle = -1;
+	speed_t speed;
 	struct termios PortTermios;
 	struct serial_struct serinfo;
 	pthread_attr_t ThreadAttr;
@@ -910,6 +911,7 @@ int main(int argc, char *argv[], char *envp[])
 	if(f_debug)
 		printTermios(&PortTermios);
 
+#ifdef	CONFIG_NOT_STD_BANDRATE
 	serinfo.reserved_char[0] = 0;
 	if (ioctl(PortHandle, TIOCGSERIAL, &serinfo) < 0) {
 		printf("Cannot get serial info");
@@ -1002,7 +1004,99 @@ int main(int argc, char *argv[], char *envp[])
 		printf("Cannot set serial info");
 		goto ERROR_END;
 	}
+#else
+	memset(&PortTermios, 0, sizeof(struct termios));
+	/* C_ISPEED     Input baud (new interface)
+       C_OSPEED     Output baud (new interface)
+    */
+    switch (baudrate) {
+    case 110:
+        speed = B110;
+        break;
+    case 300:
+        speed = B300;
+        break;
+    case 600:
+        speed = B600;
+        break;
+    case 1200:
+        speed = B1200;
+        break;
+    case 2400:
+        speed = B2400;
+        break;
+    case 4800:
+        speed = B4800;
+        break;
+    case 9600:
+        speed = B9600;
+        break;
+    case 19200:
+        speed = B19200;
+        break;
+    case 38400:
+        speed = B38400;
+        break;
+    case 57600:
+        speed = B57600;
+        break;
+    case 115200:
+        speed = B115200;
+        break;
+    case 230400:
+        speed = B230400;
+        break;
+    case 460800:
+        speed = B460800;
+        break;
+    case 500000:
+        speed = B500000;
+        break;
+    case 576000:
+        speed = B576000;
+        break;
+    case 921600:
+        speed = B921600;
+        break;
+    case 1000000:
+        speed = B1000000;
+        break;
+   case 1152000:
+        speed = B1152000;
+        break;
+    case 1500000:
+        speed = B1500000;
+        break;
+    case 2500000:
+        speed = B2500000;
+        break;
+    case 3000000:
+        speed = B3000000;
+        break;
+    case 3500000:
+        speed = B3500000;
+        break;
+    case 4000000:
+        speed = B4000000;
+        break;
+    default:
+        speed = B9600;
+       
+		fprintf(stderr,
+               "WARNING Unknown baud rate %d for %s (B9600 used)\n",
+               baudrate, (char *)argv[optind]);
+        
+    }
 
+	/* Set the baud rate */
+    if ((cfsetispeed(&PortTermios, speed) < 0) ||
+        (cfsetospeed(&PortTermios, speed) < 0)) {
+        close(PortHandle);
+        PortHandle = -1;
+        return -1;
+    }	
+
+#endif
 	pthread_attr_init(&ThreadAttr);
 	pthread_attr_setstacksize(&ThreadAttr, 0x10000); // 4KB
 	bRunning = 1;
